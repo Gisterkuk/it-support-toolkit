@@ -1,0 +1,21 @@
+# Uptime Kuma: a small self-hosted monitor that checks websites, servers and devices
+# (HTTP, ping, TCP port, DNS) and alerts by email, Telegram, WhatsApp gateways, etc.
+#
+# Start:  docker compose up -d
+# Open:   http://<server-ip>:3001  (create the admin user on first visit)
+# Logs:   docker compose logs -f
+# Update: docker compose pull && docker compose up -d
+
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime-kuma
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - uptime-kuma-data:/app/data
+    # The image ships its own healthcheck, so `docker ps` shows (healthy) / (unhealthy).
+
+volumes:
+  uptime-kuma-data:

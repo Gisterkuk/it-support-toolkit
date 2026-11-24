@@ -1,0 +1,49 @@
+name: lint
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  powershell:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
+          $results = Invoke-ScriptAnalyzer -Path ./windows -Recurse -Severity Warning, Error
+          $results | Format-Table RuleName, Severity, ScriptName, Line, Message -AutoSize -Wrap
+          if ($results) { exit 1 }
+      - name: Read-only scripts run
+        shell: pwsh
+        run: |
+          ./windows/Get-SystemReport.ps1 -OutputPath $env:RUNNER_TEMP
+          ./windows/Export-EventLogs.ps1 -Days 1 -OutputPath $env:RUNNER_TEMP
+          ./windows/Get-CrashInfo.ps1 -Days 7
+          ./windows/Reset-PrintSpooler.ps1 -WhatIf
+
+  shell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ShellCheck
+        run: shellcheck linux/*.sh
+      - name: Health check runs
+        run: |
+          set +e
+          bash linux/server-health.sh
+          code=$?
+          # 0 = healthy, 1 = warnings found; anything else is a script error.
+          [ "$code" -le 1 ]
+
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate docker-compose files
+        run: |
+          for f in docker/*/docker-compose.yml; do
+            docker compose -f "$f" config --quiet && echo "ok $f"
+          done
